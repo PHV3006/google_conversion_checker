@@ -1,0 +1,62 @@
+// Initialize Global Variables
+  var emailAddress = "YOUR_EMAIL"
+  var account = AdsApp.currentAccount().getName()
+  var accountId = AdsApp.currentAccount().getCustomerId()
+
+function main() {
+  var today = new Date();
+  var yesterday = new Date(today);
+  var dayBefore = new Date(today);
+
+  yesterday.setDate(today.getDate() - 1);
+  dayBefore.setDate(today.getDate() - 2);
+
+  var yesterdayString = Utilities.formatDate(yesterday, "GMT", "yyyy-MM-dd");
+  var dayBeforeString = Utilities.formatDate(dayBefore, "GMT", "yyyy-MM-dd");
+
+  // Fetch Conversion Actions for yesterday
+  var yesterdayReport = AdsApp.report(
+    "SELECT ConversionTypeName " +
+    "FROM CAMPAIGN_PERFORMANCE_REPORT " +
+    "WHERE Date = '" + yesterdayString + "'"
+  );
+
+  var yesterdayConversionActions = getUniqueConversionActions(yesterdayReport);
+
+  // Fetch Conversion Actions for the day before yesterday
+  var dayBeforeReport = AdsApp.report(
+    "SELECT ConversionTypeName " +
+    "FROM CAMPAIGN_PERFORMANCE_REPORT " +
+    "WHERE Date = '" + dayBeforeString + "'"
+  );
+
+  var dayBeforeConversionActions = getUniqueConversionActions(dayBeforeReport);
+  
+  // Check for new conversion actions
+  var newConversionActions = [];
+  for (var i = 0; i < yesterdayConversionActions.length; i++) {
+    if (dayBeforeConversionActions.indexOf(yesterdayConversionActions[i]) === -1) {
+      newConversionActions.push(yesterdayConversionActions[i]);
+    }
+  }
+
+  // If there are new conversion actions, send an email
+  if (newConversionActions.length > 0) {
+    var emailBody = "New Conversion Actions Detected:\n" + newConversionActions.join(', ');
+    MailApp.sendEmail(emailAddress, "New Conversion Actions Alert for " + account + " - " + accountId, emailBody);
+  }
+}
+
+// Helper function to get unique conversion actions from a report
+function getUniqueConversionActions(report) {
+  var rows = report.rows();
+  var uniqueConversionActions = [];
+  while (rows.hasNext()) {
+    var row = rows.next();
+    var conversionAction = row["ConversionTypeName"];
+    if (uniqueConversionActions.indexOf(conversionAction) === -1) {
+      uniqueConversionActions.push(conversionAction);
+    }
+  }
+  return uniqueConversionActions;
+}
